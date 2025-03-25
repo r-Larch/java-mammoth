@@ -573,6 +573,218 @@ public class BodyXmlTests {
         }
     }
 
+    @Nested
+    public class CheckboxTests {
+        @Test
+        public void complexFieldCheckboxWithoutSeparateIsRead() {
+            XmlElement element = element("w:p", list(
+                element("w:r", list(
+                    element("w:fldChar", map("w:fldCharType", "begin"))
+                )),
+                element("w:instrText", list(
+                    textXml(" FORMCHECKBOX ")
+                )),
+                element("w:r", list(
+                    element("w:fldChar", map("w:fldCharType", "end"))
+                ))
+            ));
+
+            DocumentElement paragraph = readSuccess(bodyReader(), element);
+
+            assertThat(paragraph, isParagraph(hasChildren(
+                isEmptyRun(),
+                isRun(hasChildren(
+                    isCheckbox()
+                ))
+            )));
+        }
+
+        @Test
+        public void complexFieldCheckboxWithSeparateIsRead() {
+            XmlElement element = element("w:p", list(
+                element("w:r", list(
+                    element("w:fldChar", map("w:fldCharType", "begin"))
+                )),
+                element("w:instrText", list(
+                    textXml(" FORMCHECKBOX ")
+                )),
+                element("w:r", list(
+                    element("w:fldChar", map("w:fldCharType", "separate"))
+                )),
+                element("w:r", list(
+                    element("w:fldChar", map("w:fldCharType", "end"))
+                ))
+            ));
+
+            DocumentElement paragraph = readSuccess(bodyReader(), element);
+
+            assertThat(paragraph, isParagraph(hasChildren(
+                isEmptyRun(),
+                isEmptyRun(),
+                isRun(hasChildren(
+                    isCheckbox()
+                ))
+            )));
+        }
+
+        @Test
+        public void complexFieldCheckboxWithoutDefaultNorCheckedIsUnchecked() {
+            XmlElement element = complexFieldCheckboxParagraph(list(
+                element("w:checkBox")
+            ));
+
+            DocumentElement paragraph = readSuccess(bodyReader(), element);
+
+            assertThat(paragraph, isParagraph(hasChildren(
+                isEmptyRun(),
+                isEmptyRun(),
+                isRun(hasChildren(
+                    isCheckbox(false)
+                ))
+            )));
+        }
+
+        @Test
+        public void complexFieldCheckboxWithDefault0AndWithoutCheckedIsUnchecked() {
+            XmlElement element = complexFieldCheckboxParagraph(list(
+                element("w:checkBox", list(
+                    element("w:default", map("w:val", "0"))
+                ))
+            ));
+
+            DocumentElement paragraph = readSuccess(bodyReader(), element);
+
+            assertThat(paragraph, isParagraph(hasChildren(
+                isEmptyRun(),
+                isEmptyRun(),
+                isRun(hasChildren(
+                    isCheckbox(false)
+                ))
+            )));
+        }
+
+        @Test
+        public void complexFieldCheckboxWithDefault1AndWithoutCheckedIsChecked() {
+            XmlElement element = complexFieldCheckboxParagraph(list(
+                element("w:checkBox", list(
+                    element("w:default", map("w:val", "1"))
+                ))
+            ));
+
+            DocumentElement paragraph = readSuccess(bodyReader(), element);
+
+            assertThat(paragraph, isParagraph(hasChildren(
+                isEmptyRun(),
+                isEmptyRun(),
+                isRun(hasChildren(
+                    isCheckbox(true)
+                ))
+            )));
+        }
+
+        @Test
+        public void complexFieldCheckboxWithDefault1AndChecked0IsUnchecked() {
+            XmlElement element = complexFieldCheckboxParagraph(list(
+                element("w:checkBox", list(
+                    element("w:default", map("w:val", "1")),
+                    element("w:checked", map("w:val", "0"))
+                ))
+            ));
+
+            DocumentElement paragraph = readSuccess(bodyReader(), element);
+
+            assertThat(paragraph, isParagraph(hasChildren(
+                isEmptyRun(),
+                isEmptyRun(),
+                isRun(hasChildren(
+                    isCheckbox(false)
+                ))
+            )));
+        }
+
+        @Test
+        public void complexFieldCheckboxWithDefault0AndChecked1IsUnchecked() {
+            XmlElement element = complexFieldCheckboxParagraph(list(
+                element("w:checkBox", list(
+                    element("w:default", map("w:val", "0")),
+                    element("w:checked", map("w:val", "1"))
+                ))
+            ));
+
+            DocumentElement paragraph = readSuccess(bodyReader(), element);
+
+            assertThat(paragraph, isParagraph(hasChildren(
+                isEmptyRun(),
+                isEmptyRun(),
+                isRun(hasChildren(
+                    isCheckbox(true)
+                ))
+            )));
+        }
+
+        @Test
+        public void structuredDocumentTagCheckboxWithoutCheckedIsNotChecked() {
+            XmlElement element = element("w:sdt", list(
+                element("w:sdtPr", list(
+                    element("wordml:checkbox")
+                ))
+            ));
+
+            DocumentElement result = readSuccess(bodyReader(), element);
+
+            assertThat(result, isCheckbox(false));
+        }
+
+        @Test
+        public void structuredDocumentTagCheckboxWithChecked0IsNotChecked() {
+            XmlElement element = element("w:sdt", list(
+                element("w:sdtPr", list(
+                    element("wordml:checkbox", list(
+                        element("wordml:checked", map("wordml:val", "0"))
+                    ))
+                ))
+            ));
+
+            DocumentElement result = readSuccess(bodyReader(), element);
+
+            assertThat(result, isCheckbox(false));
+        }
+
+        @Test
+        public void structuredDocumentTagCheckboxWithChecked1IsChecked() {
+            XmlElement element = element("w:sdt", list(
+                element("w:sdtPr", list(
+                    element("wordml:checkbox", list(
+                        element("wordml:checked", map("wordml:val", "1"))
+                    ))
+                ))
+            ));
+
+            DocumentElement result = readSuccess(bodyReader(), element);
+
+            assertThat(result, isCheckbox(true));
+        }
+
+        private XmlElement complexFieldCheckboxParagraph(List<XmlNode> ffDataChildren) {
+            return element("w:p", list(
+                element("w:r", list(
+                    element("w:fldChar", map("w:fldCharType", "begin"), list(
+                        element("w:ffData", ffDataChildren)
+                    ))
+                )),
+                element("w:instrText", list(
+                    textXml(" FORMCHECKBOX ")
+                )),
+                element("w:r", list(
+                    element("w:fldChar", map("w:fldCharType", "separate"))
+                )),
+                element("w:r", list(
+                    element("w:fldChar", map("w:fldCharType", "end"))
+                ))
+            ));
+        }
+    }
+
     @Test
     public void runHasNoStyleIfItHasNoProperties() {
         XmlElement element = runXml(list());
@@ -857,6 +1069,37 @@ public class BodyXmlTests {
         assertThat(
             readSuccess(bodyReader(), element),
             hasProperty("verticalAlignment", equalTo(VerticalAlignment.SUBSCRIPT)));
+    }
+
+    @Test
+    public void runHasNoHighlightByDefault() {
+        XmlElement element = runXmlWithProperties();
+
+        DocumentElement result = readSuccess(bodyReader(), element);
+
+        assertThat(result, hasProperty("highlight", equalTo(Optional.empty())));
+    }
+
+    @Test
+    public void runHasHighlightReadFromProperties() {
+        XmlElement element = runXmlWithProperties(
+            element("w:highlight", map("w:val", "yellow"))
+        );
+
+        DocumentElement result = readSuccess(bodyReader(), element);
+
+        assertThat(result, hasProperty("highlight", equalTo(Optional.of("yellow"))));
+    }
+
+    @Test
+    public void whenHighlightIsNoneThenRunhasNoHighlight() {
+        XmlElement element = runXmlWithProperties(
+            element("w:highlight", map("w:val", "none"))
+        );
+
+        DocumentElement result = readSuccess(bodyReader(), element);
+
+        assertThat(result, hasProperty("highlight", equalTo(Optional.empty())));
     }
 
     @Test

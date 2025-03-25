@@ -8,6 +8,8 @@ import org.zwobble.mammoth.internal.styles.parsing.StyleMappingTokeniser;
 import org.zwobble.mammoth.internal.styles.parsing.TokenIterator;
 import org.zwobble.mammoth.internal.styles.parsing.TokenType;
 
+import java.util.Optional;
+
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.zwobble.mammoth.tests.DeepReflectionMatcher.deepEquals;
 
@@ -97,6 +99,122 @@ public class DocumentMatcherParsingTests {
         assertThat(
             parseDocumentMatcher("table[style-name='Normal Table']"),
             hasTableMatcher(TableMatcher.styleName("Normal Table")));
+    }
+
+    @Test
+    public void readsBold() {
+        assertThat(
+            parseDocumentMatcher("b"),
+            deepEquals(new StyleMapBuilder().bold(HTML_PATH).build())
+        );
+    }
+
+    @Test
+    public void readsItalic() {
+        assertThat(
+            parseDocumentMatcher("i"),
+            deepEquals(new StyleMapBuilder().italic(HTML_PATH).build())
+        );
+    }
+
+    @Test
+    public void readsUnderline() {
+        assertThat(
+            parseDocumentMatcher("u"),
+            deepEquals(new StyleMapBuilder().underline(HTML_PATH).build())
+        );
+    }
+
+    @Test
+    public void readsStrikethrough() {
+        assertThat(
+            parseDocumentMatcher("strike"),
+            deepEquals(new StyleMapBuilder().strikethrough(HTML_PATH).build())
+        );
+    }
+
+    @Test
+    public void readsAllCaps() {
+        assertThat(
+            parseDocumentMatcher("all-caps"),
+            deepEquals(new StyleMapBuilder().allCaps(HTML_PATH).build())
+        );
+    }
+
+    @Test
+    public void readsSmallCaps() {
+        assertThat(
+            parseDocumentMatcher("small-caps"),
+            deepEquals(new StyleMapBuilder().smallCaps(HTML_PATH).build())
+        );
+    }
+
+    @Test
+    public void readsHighlightWithoutColor() {
+        assertThat(
+            parseDocumentMatcher("highlight"),
+            deepEquals(
+                new StyleMapBuilder()
+                    .mapHighlight(new HighlightMatcher(Optional.empty()), HTML_PATH)
+                    .build()
+            )
+        );
+    }
+
+    @Test
+    public void readsHighlightWithColor() {
+        assertThat(
+            parseDocumentMatcher("highlight[color='yellow']"),
+            deepEquals(
+                new StyleMapBuilder()
+                    .mapHighlight(new HighlightMatcher(Optional.of("yellow")), HTML_PATH)
+                    .build()
+            )
+        );
+    }
+
+    @Test
+    public void readsCommentReference() {
+        assertThat(
+            parseDocumentMatcher("comment-reference"),
+            deepEquals(new StyleMapBuilder().commentReference(HTML_PATH).build())
+        );
+    }
+
+    @Test
+    public void readsLineBreaks() {
+        assertThat(
+            parseDocumentMatcher("br[type='line']"),
+            deepEquals(
+                new StyleMapBuilder()
+                    .mapBreak(BreakMatcher.LINE_BREAK, HTML_PATH)
+                    .build()
+            )
+        );
+    }
+
+    @Test
+    public void readsPageBreaks() {
+        assertThat(
+            parseDocumentMatcher("br[type='page']"),
+            deepEquals(
+                new StyleMapBuilder()
+                    .mapBreak(BreakMatcher.PAGE_BREAK, HTML_PATH)
+                    .build()
+            )
+        );
+    }
+
+    @Test
+    public void readsColumnBreaks() {
+        assertThat(
+            parseDocumentMatcher("br[type='column']"),
+            deepEquals(
+                new StyleMapBuilder()
+                    .mapBreak(BreakMatcher.COLUMN_BREAK, HTML_PATH)
+                    .build()
+            )
+        );
     }
 
     private static final HtmlPath HTML_PATH = HtmlPath.element("placeholder");

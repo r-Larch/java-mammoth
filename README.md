@@ -43,13 +43,13 @@ The following features are currently supported:
 
 ## Installation
 
-Available on [Maven Central](http://search.maven.org/#artifactdetails|org.zwobble.mammoth|mammoth|1.7.0|jar).
+Available on [Maven Central](http://search.maven.org/#artifactdetails|org.zwobble.mammoth|mammoth|1.9.0|jar).
 
 ```xml
 <dependency>
   <groupId>org.zwobble.mammoth</groupId>
   <artifactId>mammoth</artifactId>
-  <version>1.7.0</version>
+  <version>1.9.0</version>
 </dependency>
 ```
 
@@ -459,6 +459,43 @@ small-caps
 
 Note that this matches text that has had small caps explicitly applied to it.
 It will not match any text that is small caps because of its paragraph or run style.
+
+#### Highlight
+
+Match explicitly highlighted text:
+
+```
+highlight
+```
+
+Note that this matches text that has had a highlight explicitly applied to it.
+It will not match any text that is highlighted because of its paragraph or run style.
+
+It's also possible to match specific colours.
+For instance, to match yellow highlights:
+
+```
+highlight[color='yellow']
+```
+
+The set of colours typically used are:
+
+* `black`
+* `blue`
+* `cyan`
+* `green`
+* `magenta`
+* `red`
+* `yellow`
+* `white`
+* `darkBlue`
+* `darkCyan`
+* `darkGreen`
+* `darkMagenta`
+* `darkRed`
+* `darkYellow`
+* `darkGray`
+* `lightGray`
 
 #### Ignoring document elements
 

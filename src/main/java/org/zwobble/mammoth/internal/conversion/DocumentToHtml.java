@@ -159,6 +159,11 @@ public class DocumentToHtml {
         @Override
         public List<HtmlNode> visit(Run run, Context context) {
             Supplier<List<HtmlNode>> nodes = () -> convertChildrenToHtml(run, context);
+            if (run.getHighlight().isPresent()) {
+                nodes = styleMap.getHighlightHtmlPath(run.getHighlight().get())
+                    .orElse(HtmlPath.EMPTY)
+                    .wrap(nodes);
+            }
             if (run.isSmallCaps()) {
                 nodes = styleMap.getSmallCaps().orElse(HtmlPath.EMPTY).wrap(nodes);
             }
@@ -291,6 +296,18 @@ public class DocumentToHtml {
             } else {
                 return "";
             }
+        }
+
+        @Override
+        public List<HtmlNode> visit(Checkbox checkbox, Context context) {
+            Map<String, String> attributes = new HashMap<>();
+            attributes.put("type", "checkbox");
+
+            if (checkbox.checked()) {
+                attributes.put("checked", "checked");
+            }
+
+            return list(Html.element("input", attributes));
         }
 
         @Override

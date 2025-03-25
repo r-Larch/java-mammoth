@@ -211,6 +211,50 @@ public class DocumentToHtmlTests {
     }
 
     @Test
+    public void highlightedRunsAreIgnoredByDefault() {
+        Run run = run(withHighlight("yellow"), withChildren(new Text("Hello")));
+
+        List<HtmlNode> result = convertToHtml(run);
+
+        assertThat(result, deepEquals(list(Html.text("Hello"))));
+    }
+
+    @Test
+    public void highlightedRunsCanBeConfiguredWithStyleMappingForAllHighlights() {
+        Run run = run(withHighlight("yellow"), withChildren(new Text("Hello")));
+        StyleMap styleMap = StyleMap.builder()
+            .mapHighlight(new HighlightMatcher(Optional.empty()), HtmlPath.element("mark"))
+            .build();
+
+        List<HtmlNode> result = convertToHtml(run, styleMap);
+
+        assertThat(result, deepEquals(list(
+            Html.element("mark", list(Html.text("Hello")))
+        )));
+    }
+
+    @Test
+    public void highlightedRunsCanBeConfiguredWithStyleMappingForSpecificHighlightColor() {
+        Paragraph paragraph = paragraph(withChildren(
+            run(withHighlight("yellow"), withChildren(new Text("Yellow"))),
+            run(withHighlight("red"), withChildren(new Text("Red")))
+        ));
+        StyleMap styleMap = StyleMap.builder()
+            .mapHighlight(new HighlightMatcher(Optional.of("yellow")), HtmlPath.element("mark", map("class", "yellow")))
+            .mapHighlight(new HighlightMatcher(Optional.empty()), HtmlPath.element("mark"))
+            .build();
+
+        List<HtmlNode> result = convertToHtml(paragraph, styleMap);
+
+        assertThat(result, deepEquals(list(
+            Html.element("p", list(
+                Html.element("mark", map("class", "yellow"), list(Html.text("Yellow"))),
+                Html.element("mark", list(Html.text("Red")))
+            ))
+        )));
+    }
+
+    @Test
     public void superscriptRunsAreWrappedInSuperscriptTags() {
         assertThat(
             convertToHtml(run(withVerticalAlignment(SUPERSCRIPT), withChildren(new Text("Hello")))),
@@ -250,10 +294,19 @@ public class DocumentToHtmlTests {
     public void breaksCanBeMappedUsingStyleMappings() {
         assertThat(
             convertToHtml(
-                Break.PAGE_BREAK,
-                StyleMap.builder().mapBreak(BreakMatcher.PAGE_BREAK, HtmlPath.element("hr")).build()
+                run(withChildren(
+                    Break.PAGE_BREAK,
+                    Break.LINE_BREAK
+                )),
+                StyleMap.builder()
+                    .mapBreak(BreakMatcher.PAGE_BREAK, HtmlPath.element("hr"))
+                    .mapBreak(BreakMatcher.LINE_BREAK, HtmlPath.element("br", map("class", "line-break")))
+                    .build()
             ),
-            deepEquals(list(Html.element("hr")))
+            deepEquals(list(
+                Html.element("hr"),
+                Html.element("br", map("class", "line-break"))
+            ))
         );
     }
 
@@ -399,6 +452,22 @@ public class DocumentToHtmlTests {
                 withChildren(new Text("Hello"))
             )),
             deepEquals(list(Html.collapsibleElement("a", map("href", "#doc-42-start", "target", "_blank"), list(Html.text("Hello"))))));
+    }
+
+    @Test
+    public void uncheckedCheckboxIsConvertedToUncheckedCheckboxInput() {
+        assertThat(
+            convertToHtml(checkbox(false)),
+            deepEquals(list(Html.element("input", map("type", "checkbox"))))
+        );
+    }
+
+    @Test
+    public void checkedCheckboxIsConvertedToCheckedCheckboxInput() {
+        assertThat(
+            convertToHtml(checkbox(true)),
+            deepEquals(list(Html.element("input", map("type", "checkbox", "checked", "checked"))))
+        );
     }
 
     @Test

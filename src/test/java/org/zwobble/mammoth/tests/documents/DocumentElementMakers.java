@@ -15,6 +15,7 @@ import static org.zwobble.mammoth.tests.Argument.arg;
 public class DocumentElementMakers {
     private static final ArgumentKey<Optional<Style>> STYLE = new ArgumentKey<>("style");
     private static final ArgumentKey<Optional<NumberingLevel>> NUMBERING = new ArgumentKey<>("numbering");
+    private static final ArgumentKey<Optional<String>> HIGHLIGHT = new ArgumentKey<>("highlight");
     private static final ArgumentKey<Boolean> BOLD = new ArgumentKey<>("bold");
     private static final ArgumentKey<Boolean> ITALIC = new ArgumentKey<>("italic");
     private static final ArgumentKey<Boolean> UNDERLINE = new ArgumentKey<>("underline");
@@ -61,6 +62,10 @@ public class DocumentElementMakers {
 
     public static Argument<Boolean> withSmallCaps(boolean smallCaps) {
         return arg(SMALL_CAPS, smallCaps);
+    }
+
+    public static Argument<Optional<String>> withHighlight(String highlight) {
+        return arg(HIGHLIGHT, Optional.of(highlight));
     }
 
     public static Argument<VerticalAlignment> withVerticalAlignment(VerticalAlignment verticalAlignment) {
@@ -118,6 +123,7 @@ public class DocumentElementMakers {
     public static Run run(Object... args) {
         Arguments arguments = new Arguments(args);
         return new Run(
+            arguments.get(HIGHLIGHT, Optional.empty()),
             arguments.get(BOLD, false),
             arguments.get(ITALIC, false),
             arguments.get(UNDERLINE, false),
@@ -177,5 +183,9 @@ public class DocumentElementMakers {
 
     public static Argument<Optional<String>> withTargetFrame(String targetFrame) {
         return arg(TARGET_FRAME, Optional.of(targetFrame));
+    }
+
+    public static Checkbox checkbox(boolean checked) {
+        return new Checkbox(checked);
     }
 }
