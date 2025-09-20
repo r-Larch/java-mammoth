@@ -1,3 +1,25 @@
+# 1.11.0
+
+* Ignore style definitions using a style ID that has already been used.
+
+* Disable external file accesses by default. External file access can be enabled
+  using enableExternalFileAccess().
+
+* Handle numbering levels defined without an index.
+
+# 1.10.0
+
+* Add "Heading" and "Body" styles, as found in documents created by Apple Pages,
+  to the default style map.
+
+* Handle structured document tags representing checkboxes wrapped in other
+  elements, such as table cells. Previously, the wrapping elements would have
+  been ignored.
+
+* Ignore deleted table rows.
+
+* Add notes on security.
+
 # 1.9.0
 
 * Detect checkboxes, both as complex fields and structured document tags, and

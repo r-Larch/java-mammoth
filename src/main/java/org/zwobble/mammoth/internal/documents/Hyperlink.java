@@ -42,6 +42,11 @@ public class Hyperlink implements DocumentElement, HasChildren {
     }
 
     @Override
+    public DocumentElement replaceChildren(List<DocumentElement> newChildren) {
+        return new Hyperlink(this.href, this.anchor, this.targetFrame, newChildren);
+    }
+
+    @Override
     public <T, U> T accept(DocumentElementVisitor<T, U> visitor, U context) {
         return visitor.visit(this, context);
     }

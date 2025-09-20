@@ -33,8 +33,14 @@ public class Paragraph implements DocumentElement, HasChildren {
         return indent;
     }
 
+    @Override
     public List<DocumentElement> getChildren() {
         return children;
+    }
+
+    @Override
+    public DocumentElement replaceChildren(List<DocumentElement> newChildren) {
+        return new Paragraph(this.style, this.numbering, this.indent, newChildren);
     }
 
     @Override

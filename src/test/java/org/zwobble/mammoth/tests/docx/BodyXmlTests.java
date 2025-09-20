@@ -259,18 +259,21 @@ public class BodyXmlTests {
     }
 
     @Test
-    public void numberingPropertiesAreIgnoredIfLevelIsMissing() {
+    public void whenNumberingPropertiesAreMissingLevelThenLevelOf0IsAssumed() {
         // TODO: emit warning
         XmlElement element = paragraphXml(list(
             element("w:pPr", list(
                 element("w:numPr", map(), list(
-                    element("w:numId", map("w:val", "42"))))))));
+                    element("w:numId", map("w:val", "42"))
+                ))
+            ))
+        ));
 
-        Numbering numbering = numberingMap(map("42", map("1", Numbering.AbstractNumLevel.ordered("1"))));
+        Numbering numbering = numberingMap(map("42", map("0", Numbering.AbstractNumLevel.ordered("0"))));
 
         assertThat(
             readSuccess(bodyReader(numbering), element),
-            hasNumbering(Optional.empty()));
+            hasNumbering(NumberingLevel.ordered("0")));
     }
 
     @Test
@@ -763,6 +766,97 @@ public class BodyXmlTests {
             DocumentElement result = readSuccess(bodyReader(), element);
 
             assertThat(result, isCheckbox(true));
+        }
+
+        @Test
+        public void whenStructuredDocumentTagCheckboxHasSdtContentThenCheckboxReplacesSingleCharacter() {
+            XmlElement element = element("w:tbl", list(
+                wTr(
+                    element("w:sdt", list(
+                        element("w:sdtPr", list(
+                            element("wordml:checkbox", list(
+                                element("wordml:checked", map("wordml:val", "1"))
+                            ))
+                        )),
+                        element("w:sdtContent", list(
+                            element("w:tc", list(
+                                element("w:p", list(
+                                    element("w:r", list(
+                                        element("w:t", list(
+                                            textXml("☐")
+                                        ))
+                                    ))
+                                ))
+                            ))
+                        ))
+                    ))
+                )
+            ));
+
+            DocumentElement result = readSuccess(bodyReader(), element);
+
+            assertThat(result, deepEquals(table(list(
+                tableRow(list(
+                    tableCell(
+                        withChildren(
+                            paragraph(withChildren(
+                                run(withChildren(
+                                    checkbox(true)
+                                ))
+                            ))
+                        )
+                    )
+                ))
+            ))));
+        }
+
+        @Test
+        public void whenStructuredDocumentTagCheckboxHasSdtContentThenDeletedContentIsIgnored() {
+            XmlElement element = element("w:tbl", list(
+                wTr(
+                    element("w:sdt", list(
+                        element("w:sdtPr", list(
+                            element("wordml:checkbox", list(
+                                element("wordml:checked", map("wordml:val", "1"))
+                            ))
+                        )),
+                        element("w:sdtContent", list(
+                            element("w:tc", list(
+                                element("w:p", list(
+                                    element("w:r", list(
+                                        element("w:t", list(
+                                            textXml("☐")
+                                        ))
+                                    )),
+                                    element("w:del", list(
+                                        element("w:r", list(
+                                            element("w:t", list(
+                                                textXml("☐")
+                                            ))
+                                        ))
+                                    ))
+                                ))
+                            ))
+                        ))
+                    ))
+                )
+            ));
+
+            DocumentElement result = readSuccess(bodyReader(), element);
+
+            assertThat(result, deepEquals(table(list(
+                tableRow(list(
+                    tableCell(
+                        withChildren(
+                            paragraph(withChildren(
+                                run(withChildren(
+                                    checkbox(true)
+                                ))
+                            ))
+                        )
+                    )
+                ))
+            ))));
         }
 
         private XmlElement complexFieldCheckboxParagraph(List<XmlNode> ffDataChildren) {
@@ -1398,15 +1492,89 @@ public class BodyXmlTests {
     }
 
     @Test
-    public void warningIfNonRowInTable() {
+    public void whenRowIsMarkedAsDeletedInRowPropertiesThenRowIsIgnored() {
         XmlElement element = element("w:tbl", list(
-            element("w:p")
+            element("w:tr", list(
+                element("w:tc", list(
+                    element("w:p", list(
+                        runXml("Row 1")
+                    ))
+                ))
+            )),
+
+            element("w:tr", list(
+                element("w:trPr", list(
+                    element("w:del")
+                )),
+                element("w:tc", list(
+                    element("w:p", list(
+                        runXml("Row 2")
+                    ))
+                ))
+            ))
         ));
 
+        DocumentElement result = readSuccess(bodyReader(), element);
+
         assertThat(
-            read(bodyReader(), element),
+            result,
+            deepEquals(table(list(
+                tableRow(list(
+                    tableCell(
+                        withChildren(
+                            paragraph(withChildren(
+                                runWithText("Row 1")
+                            ))
+                        )
+                    )
+                ))
+            )))
+        );
+    }
+
+    @Test
+    public void warningIfNonRowInTable() {
+        // Include normal rows to ensure they're still read correctly.
+        XmlElement element = element("w:tbl", list(
+            element("w:tr", list(
+                element("w:tc", list(
+                    element("w:p", list(
+                        runXml("Row 1")
+                    ))
+                ))
+            )),
+            element("w:p"),
+            element("w:tr", list(
+                element("w:tc", list(
+                    element("w:p", list(
+                        runXml("Row 2")
+                    ))
+                ))
+            ))
+        ));
+
+        InternalResult<DocumentElement> result = read(bodyReader(), element);
+
+        assertThat(
+            result,
             isInternalResult(
-                deepEquals(table(list(paragraph()))),
+                deepEquals(table(list(
+                    tableRow(list(
+                        tableCell(withChildren(
+                            paragraph(withChildren(
+                                runWithText("Row 1")
+                            ))
+                        ))
+                    )),
+                    paragraph(),
+                    tableRow(list(
+                        tableCell(withChildren(
+                            paragraph(withChildren(
+                                runWithText("Row 2")
+                            ))
+                        ))
+                    ))
+                ))),
                 list("unexpected non-row element in table, cell merging may be incorrect")
             )
         );
@@ -1414,14 +1582,41 @@ public class BodyXmlTests {
 
     @Test
     public void warningIfNonCellInTableRow() {
+        // Include normal cells to ensure they're still read correctly.
         XmlElement element = element("w:tbl", list(
-            wTr(element("w:p"))
+            wTr(
+                element("w:tc", list(
+                    element("w:p", list(
+                        runXml("Cell 1")
+                    ))
+                )),
+                element("w:p"),
+                element("w:tc", list(
+                    element("w:p", list(
+                        runXml("Cell 2")
+                    ))
+                ))
+            )
         ));
 
         assertThat(
             read(bodyReader(), element),
             isInternalResult(
-                deepEquals(table(list(tableRow(list(paragraph()))))),
+                deepEquals(table(list(
+                    tableRow(list(
+                        tableCell(withChildren(
+                            paragraph(withChildren(
+                                runWithText("Cell 1")
+                            ))
+                        )),
+                        paragraph(),
+                        tableCell(withChildren(
+                            paragraph(withChildren(
+                                runWithText("Cell 2")
+                            ))
+                        ))
+                    ))
+                ))),
                 list("unexpected non-cell element in table row, cell merging may be incorrect")
             )
         );

@@ -27,6 +27,11 @@ public class TableCell implements DocumentElement, HasChildren {
     }
 
     @Override
+    public DocumentElement replaceChildren(List<DocumentElement> newChildren) {
+        return new TableCell(this.rowspan, this.colspan, newChildren);
+    }
+
+    @Override
     public <T, U> T accept(DocumentElementVisitor<T, U> visitor, U context) {
         return visitor.visit(this, context);
     }
