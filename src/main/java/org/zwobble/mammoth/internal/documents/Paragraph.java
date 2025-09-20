@@ -47,7 +47,7 @@ public class Paragraph implements DocumentElement, HasChildren {
 
     @Override
     public DocumentElement replaceChildren(List<DocumentElement> newChildren) {
-        return new Paragraph(this.style, this.numbering, this.indent, newChildren);
+        return new Paragraph(this.style, this.alignment, this.numbering, this.indent, newChildren);
     }
 
     @Override
