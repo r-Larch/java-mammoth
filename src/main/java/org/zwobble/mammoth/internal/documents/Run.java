@@ -75,8 +75,25 @@ public class Run implements DocumentElement, HasChildren {
         return style;
     }
 
+    @Override
     public List<DocumentElement> getChildren() {
         return children;
+    }
+
+    @Override
+    public DocumentElement replaceChildren(List<DocumentElement> newChildren) {
+        return new Run(
+            this.highlight,
+            this.isBold,
+            this.isItalic,
+            this.isUnderline,
+            this.isStrikethrough,
+            this.isAllCaps,
+            this.isSmallCaps,
+            this.verticalAlignment,
+            this.style,
+            newChildren
+        );
     }
 
     @Override

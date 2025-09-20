@@ -22,6 +22,11 @@ public class Table implements DocumentElement, HasChildren {
     }
 
     @Override
+    public DocumentElement replaceChildren(List<DocumentElement> newChildren) {
+        return new Table(this.style, newChildren);
+    }
+
+    @Override
     public <T, U> T accept(DocumentElementVisitor<T, U> visitor, U context) {
         return visitor.visit(this, context);
     }

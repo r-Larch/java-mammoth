@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
 
 import static org.zwobble.mammoth.internal.docx.ReadResult.*;
 import static org.zwobble.mammoth.internal.docx.Uris.uriToZipEntryName;
+import static org.zwobble.mammoth.internal.util.Casts.tryCast;
 import static org.zwobble.mammoth.internal.util.Iterables.lazyFilter;
 import static org.zwobble.mammoth.internal.util.Iterables.tryGetLast;
 import static org.zwobble.mammoth.internal.util.Lists.eagerConcat;
@@ -429,6 +430,13 @@ class StatefulBodyXmlReader {
             }
         }
 
+        // Some malformed documents define numbering levels without an index, and
+        // reference the numbering using a w:numPr element without a w:ilvl child.
+        // To handle such cases, we assume a level of 0 as a fallback.
+        if (numId.isPresent()) {
+            return numbering.findLevel(numId.get(), "0");
+        }
+
         return Optional.empty();
     }
 
@@ -515,6 +523,7 @@ class StatefulBodyXmlReader {
     private ReadResult calculateRowspans(List<DocumentElement> rows) {
         Optional<String> error = checkTableRows(rows);
         if (error.isPresent()) {
+            rows = removeUnmergedTableCells(rows);
             return ReadResult.withWarning(rows, error.get());
         }
 
@@ -562,7 +571,7 @@ class StatefulBodyXmlReader {
 
     private Optional<String> checkTableRows(List<DocumentElement> rows) {
         for (DocumentElement rowElement : rows) {
-            Optional<TableRow> row = Casts.tryCast(TableRow.class, rowElement);
+            Optional<TableRow> row = tryCast(TableRow.class, rowElement);
             if (!row.isPresent()) {
                 return Optional.of("unexpected non-row element in table, cell merging may be incorrect");
             } else {
@@ -576,11 +585,28 @@ class StatefulBodyXmlReader {
         return Optional.empty();
     }
 
+    private List<DocumentElement> removeUnmergedTableCells(List<DocumentElement> rows) {
+        return Lists.eagerMap(
+            rows,
+            transformElementsOfType(
+                UnmergedTableCell.class,
+                cell -> new TableCell(1, cell.colspan, cell.children)
+            )
+        );
+    }
+
     private ReadResult readTableRow(XmlElement element) {
         XmlElementLike properties = element.findChildOrEmpty("w:trPr");
+
+        // See 17.13.5.12 del (Deleted Table Row) of ECMA-376 4th edition Part 1
+        boolean deleted = properties.hasChild("w:del");
+        if (deleted) {
+            return ReadResult.EMPTY_SUCCESS;
+        }
+
         boolean isHeader = properties.hasChild("w:tblHeader");
         return readElements(element.getChildren())
-            .map(children -> new TableRow(children, isHeader));
+            .map(children -> list(new TableRow(children, isHeader)));
     }
 
     private ReadResult readTableCell(XmlElement element) {
@@ -590,7 +616,7 @@ class StatefulBodyXmlReader {
             .getAttributeOrNone("w:val");
         int colspan = gridSpan.map(Integer::parseInt).orElse(1);
         return readElements(element.getChildren())
-            .map(children -> new UnmergedTableCell(readVmerge(properties), colspan, children));
+            .map(children -> list(new UnmergedTableCell(readVmerge(properties), colspan, children)));
     }
 
     private boolean readVmerge(XmlElementLike properties) {
@@ -599,7 +625,7 @@ class StatefulBodyXmlReader {
             .orElse(false);
     }
 
-    private static class UnmergedTableCell implements DocumentElement {
+    private static class UnmergedTableCell implements DocumentElement, HasChildren {
         private final boolean vmerge;
         private final int colspan;
         private final List<DocumentElement> children;
@@ -608,6 +634,16 @@ class StatefulBodyXmlReader {
             this.vmerge = vmerge;
             this.colspan = colspan;
             this.children = children;
+        }
+
+        @Override
+        public List<DocumentElement> getChildren() {
+            return children;
+        }
+
+        @Override
+        public DocumentElement replaceChildren(List<DocumentElement> newChildren) {
+            return new UnmergedTableCell(this.vmerge, this.colspan, newChildren);
         }
 
         @Override
@@ -628,11 +664,11 @@ class StatefulBodyXmlReader {
             String href = anchor.map(fragment -> Uris.replaceFragment(targetHref, anchor.get()))
                 .orElse(targetHref);
             return childrenResult.map(children ->
-                Hyperlink.href(href, targetFrame, children)
+                list(Hyperlink.href(href, targetFrame, children))
             );
         } else if (anchor.isPresent()) {
             return childrenResult.map(children ->
-                Hyperlink.anchor(anchor.get(), targetFrame, children)
+                list(Hyperlink.anchor(anchor.get(), targetFrame, children))
             );
         } else {
             return childrenResult;
@@ -717,18 +753,67 @@ class StatefulBodyXmlReader {
     }
 
     private ReadResult readSdt(XmlElement element) {
-        Optional<XmlElement> checkbox = element
-            .findChildOrEmpty("w:sdtPr")
-            .findChild("wordml:checkbox");
+        ReadResult contentResult = readElements(
+            element.findChildOrEmpty("w:sdtContent").getChildren()
+        );
+        return contentResult.map(content -> {
+            // From the WordML standard: https://learn.microsoft.com/en-us/openspecs/office_standards/ms-docx/3350cb64-931f-41f7-8824-f18b2568ce66
+            //
+            // > A CT_SdtCheckbox element that specifies that the parent
+            // > structured document tag is a checkbox when displayed in the
+            // > document. The parent structured document tag contents MUST
+            // > contain a single character and optionally an additional
+            // > character in a deleted run.
 
-        if (checkbox.isPresent()) {
+            Optional<XmlElement> checkbox = element
+                .findChildOrEmpty("w:sdtPr")
+                .findChild("wordml:checkbox");
+
+            if (!checkbox.isPresent()) {
+                return content;
+            }
+
             Optional<XmlElement> checkedElement = checkbox.get().findChild("wordml:checked");
             boolean isChecked = checkedElement.isPresent() &&
                 readBooleanAttributeValue(checkedElement.get().getAttributeOrNone("wordml:val"));
-            return success(new Checkbox(isChecked));
-        } else {
-            return readElements(element.findChildOrEmpty("w:sdtContent").getChildren());
-        }
+            Checkbox documentCheckbox = new Checkbox(isChecked);
+
+            MutableBoolean hasCheckbox = new MutableBoolean(false);
+            List<DocumentElement> replacedContent = Lists.eagerMap(
+                content,
+                transformElementsOfType(Text.class, text -> {
+                    if (text.getValue().length() > 0 && !hasCheckbox.get()) {
+                        hasCheckbox.set(true);
+                        return documentCheckbox;
+                    } else {
+                        return text;
+                    }
+                })
+            );
+
+            if (hasCheckbox.get()) {
+                return replacedContent;
+            } else {
+                return list(documentCheckbox);
+            }
+        });
+    }
+
+    private <T extends DocumentElement> Function<DocumentElement, DocumentElement> transformElementsOfType(
+        Class<T> elementClass,
+        Function<T, DocumentElement> transform
+    ) {
+        return element -> {
+            if (element instanceof HasChildren) {
+                element = ((HasChildren) element).replaceChildren(
+                    Lists.eagerMap(((HasChildren) element).getChildren(), transformElementsOfType(elementClass, transform))
+                );
+            }
+
+            return tryCast(elementClass, element)
+                .map(transform)
+                .orElse(element);
+        };
     }
 
     private String relationshipIdToDocxPath(String relationshipId) {

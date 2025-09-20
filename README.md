@@ -43,13 +43,13 @@ The following features are currently supported:
 
 ## Installation
 
-Available on [Maven Central](http://search.maven.org/#artifactdetails|org.zwobble.mammoth|mammoth|1.9.0|jar).
+Available on [Maven Central](http://search.maven.org/#artifactdetails|org.zwobble.mammoth|mammoth|1.11.0|jar).
 
 ```xml
 <dependency>
   <groupId>org.zwobble.mammoth</groupId>
   <artifactId>mammoth</artifactId>
-  <version>1.9.0</version>
+  <version>1.11.0</version>
 </dependency>
 ```
 
@@ -69,6 +69,10 @@ Available on [Maven Central](http://search.maven.org/#artifactdetails|org.zwobbl
 ## Usage
 
 ### Library
+
+**Mammoth performs no sanitisation of the source document,
+and should therefore be used extremely carefully with untrusted user input.**
+See the [Security](#security) section for more information.
 
 #### Basic conversion
 
@@ -251,6 +255,10 @@ Methods:
   if the document contains an embedded style map, then it is combined with the default style map.
   Call this to ignore any embedded style maps.
 
+* `DocumentConverter enableExternalFileAccess()`: Source documents may reference files outside of the source document.
+  Access to any such external files is disabled by default.
+  Call this to enable access when converting trusted source documents.
+
 * `DocumentConverter preserveEmptyParagraphs()`: by default, empty paragraphs are ignored.
   Call this to preserve empty paragraphs in the output.
 
@@ -304,6 +312,27 @@ DocumentConverter converter = new DocumentConverter()
 ```
 
 where `streamToBase64` is a function that reads an input stream and encodes it as a Base64 string.
+
+### Security
+
+Mammoth performs no sanitisation of the source document,
+and should therefore be used extremely carefully with untrusted user input.
+For instance:
+
+* Source documents can contain links with `javascript:` targets.
+  If, for instance, you allow users to upload source documents,
+  automatically convert the document into HTML,
+  and embed the HTML into your website without sanitisation,
+  this may create links that can execute arbitrary JavaScript when clicked.
+
+* Source documents may reference files outside of the source document.
+  If, for instance, you allow users to upload source documents to a server,
+  automatically convert the document into HTML on the server,
+  and embed the HTML into your website,
+  this may allow arbitrary files on the server to be read and exfiltrated.
+  To avoid this issue, access to any such external files is disabled by default.
+  To enable access when converting trusted source documents,
+  call `enableExternalFileAccess()`.
 
 ## Writing style maps
 
